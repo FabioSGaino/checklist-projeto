@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Conferência</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background:#f2f2f2;
+  margin:0;
+}
+header{
+  background:#222;
+  color:#fff;
+  padding:12px;
+  text-align:center;
+}
+.container{
+  padding:10px;
+  max-width:900px;
+  margin:auto;
+}
+.item{
+  background:#fff;
+  margin-bottom:8px;
+  padding:12px;
+  border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.item.ok{
+  background:#d4ffd4;
+}
+.alert{
+  background:#ffe0e0;
+  padding:10px;
+  border-radius:6px;
+  margin-bottom:10px;
+  font-weight:bold;
+}
+.footer{
+  text-align:center;
+  margin-top:15px;
+  color:#666;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>Checklist de Conferência</h2>
+<p>Importe o XML do projeto</p>
+<input type="file" id="fileInput" accept=".xml">
+</header>
+
+<div class="container">
+<div id="alerts"></div>
+<div id="list"></div>
+<div class="footer">Sistema de conferência técnica</div>
+</div>
+
+<script>
+const list = document.getElementById("list");
+const alertsDiv = document.getElementById("alerts");
+
+document.getElementById("fileInput").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ()=> parseXML(reader.result);
+  reader.readAsText(file);
+});
+
+function parseXML(xmlText){
+
+  list.innerHTML = "";
+  alertsDiv.innerHTML = "";
+
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlText,"text/xml");
+
+  const items = [...xml.getElementsByTagName("ITEM")];
+
+  if(items.length === 0){
+    alertsDiv.innerHTML =
+      '<div class="alert">Nenhum ITEM encontrado no XML.</div>';
+    return;
+  }
+
+  const names = items.map(i=> (i.getAttribute("NOME") || "").toLowerCase());
+
+  // Detecta duplicados
+  const duplicates = names.filter((n,i)=> names.indexOf(n)!==i);
+  if(duplicates.length){
+    alertsDiv.innerHTML +=
+      `<div class="alert">Itens duplicados: ${[...new Set(duplicates)].join(", ")}</div>`;
+  }
+
+  // Regra esquerda/direita
+  const hasLeft = names.some(n=> n.includes("esquerda"));
+  const hasRight = names.some(n=> n.includes("direita"));
+
+  if(hasLeft !== hasRight){
+    alertsDiv.innerHTML +=
+      `<div class="alert">⚠️ Falta peça esquerda ou direita correspondente</div>`;
+  }
+
+  // Monta checklist
+  items.forEach(item=>{
+
+    const nome = item.getAttribute("NOME") || "Sem nome";
+    const ref = item.getAttribute("REFERENCIA") || "-";
+    const larg = item.getAttribute("LARGURA") || "-";
+    const alt = item.getAttribute("ALTURA") || "-";
+    const prof = item.getAttribute("PROFUNDIDADE") || "-";
+
+    const div = document.createElement("div");
+    div.className="item";
+
+    div.innerHTML = `
+      <div>
+        <strong>${nome}</strong><br>
+        Ref: ${ref}<br>
+        ${larg} x ${alt} x ${prof}
+      </div>
+      <input type="checkbox">
+    `;
+
+    div.querySelector("input").addEventListener("change",e=>{
+      div.classList.toggle("ok",e.target.checked);
+    });
+
+    list.appendChild(div);
+
+  });
+
+}
+</script>
+
+</body>
+</html>
